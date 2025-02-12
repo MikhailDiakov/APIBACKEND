@@ -127,3 +127,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 PRODUCT_SERVICE_URL = "http://127.0.0.1:8000/api/v1/"
+
+MICROSERVICE_API_KEY = "your-unique-microservice-api-key"

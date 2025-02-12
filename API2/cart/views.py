@@ -9,13 +9,19 @@ import requests
 import json
 import uuid
 from decimal import Decimal
-
+from rest_framework.permissions import BasePermission
 
 PRODUCT_SERVICE = "http://127.0.0.1:8000/api/v1/product/"
 
 redis_client = redis.StrictRedis(
     host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0, decode_responses=True
 )
+
+
+class MicroservicePermission(BasePermission):
+    def has_permission(self, request, view):
+        api_key = request.headers.get("X-MICROSERVICE-API-KEY")
+        return api_key == settings.MICROSERVICE_API_KEY
 
 
 class CartViewSet(viewsets.ViewSet):
@@ -48,10 +54,8 @@ class CartViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def get_cart(self, request):
-        # Получаем данные корзины
         cart_data = redis_client.hgetall(self.cart_key)
 
-        # Декодируем данные, если они в байтах
         cart_data = {
             key.decode("utf-8") if isinstance(key, bytes) else key: json.loads(
                 value.decode("utf-8") if isinstance(value, bytes) else value
@@ -59,39 +63,36 @@ class CartViewSet(viewsets.ViewSet):
             for key, value in cart_data.items()
         }
 
-        # Инициализация общей суммы
         total_price = Decimal(0)
         cart_details = []
 
-        # Собираем данные о товарах и считаем общую стоимость
         for product_id, product_data in cart_data.items():
-            # Извлекаем информацию о товаре
             quantity = int(product_data["quantity"])
             price = Decimal(product_data["price"])
-            price_per_item = price * quantity
+            discount = Decimal(product_data["discount"])
+            price_after_discount = price * (1 - discount / 100)
+            price_per_item = price_after_discount * quantity
 
-            # Обновляем общую цену
             total_price += price_per_item
 
-            # Формируем данные для ответа
             cart_details.append(
                 {
                     "product_id": product_id,
                     "name": product_data["name"],
                     "price": price,
+                    "discount": discount,
                     "quantity": quantity,
                     "image": product_data["image"],
+                    "price_after_discount": price_after_discount,
                     "price_per_item": price_per_item,
                 }
             )
-
-        # Преобразуем в строку для безопасности и точности
         total_price = str(total_price)
 
         return Response(
             {
                 "cart_details": cart_details,
-                "total_price": total_price,  # Включаем точную общую цену
+                "total_price": total_price,
             }
         )
 
@@ -121,6 +122,10 @@ class CartViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        price = Decimal(product_info["price"])
+        discount = Decimal(product_info["discount"])
+        price_after_discount = price * (1 - discount / 100)
+
         existing_item = redis_client.hget(self.cart_key, product_id)
         if existing_item:
             existing_item = json.loads(existing_item)
@@ -130,7 +135,9 @@ class CartViewSet(viewsets.ViewSet):
             cart_item = {
                 "quantity": quantity,
                 "name": product_info["name"],
-                "price": product_info["price"],
+                "price": str(price),
+                "discount": str(discount),
+                "price_after_discount": str(price_after_discount),
                 "image": product_info["image"],
             }
             redis_client.hset(self.cart_key, product_id, json.dumps(cart_item))
@@ -144,6 +151,8 @@ class CartViewSet(viewsets.ViewSet):
                 "quantity": quantity,
                 "name": product_info["name"],
                 "price": product_info["price"],
+                "discount": product_info["discount"],
+                "cart_key": self.cart_key,
             },
             status=status.HTTP_200_OK,
         )
@@ -245,5 +254,61 @@ class CartViewSet(viewsets.ViewSet):
                 "product_id": product_id,
                 "new_quantity": existing_item["quantity"],
             },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"])
+    def get_user_cart(self, request):
+        permission = MicroservicePermission()
+        if not permission.has_permission(request, self):
+            return Response(
+                {"error": "Forbidden. Invalid API key."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        cart_key = request.data.get("cart_key")
+        if not cart_key:
+            return Response(
+                {"error": "Cart key is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cart_data = redis_client.hgetall(cart_key)
+        if not cart_data:
+            return Response(
+                {"error": "Cart not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        cart_data = {
+            key.decode("utf-8") if isinstance(key, bytes) else key: json.loads(
+                value.decode("utf-8") if isinstance(value, bytes) else value
+            )
+            for key, value in cart_data.items()
+        }
+
+        return Response(
+            {"cart_details": cart_data},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["delete"])
+    def clear_user_cart(self, request):
+        permission = MicroservicePermission()
+        if not permission.has_permission(request, self):
+            return Response(
+                {"error": "Forbidden. Invalid API key."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        cart_key = request.data.get("cart_key")
+        if not cart_key:
+            return Response(
+                {"error": "Cart key is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        redis_client.delete(cart_key)
+
+        return Response(
+            {"message": f"Cart {cart_key} cleared"},
             status=status.HTTP_200_OK,
         )
