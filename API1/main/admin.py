@@ -4,8 +4,7 @@ from .models import Product, Category, ProductImage
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ["name", "slug"]
-    prepopulated_fields = {"slug": ("name",)}
+    list_display = ["name"]
 
 
 class ProductImageInline(admin.TabularInline):
@@ -17,7 +16,6 @@ class ProductImageInline(admin.TabularInline):
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
         "name",
-        "slug",
         "price",
         "available",
         "created",
@@ -26,5 +24,4 @@ class ProductAdmin(admin.ModelAdmin):
     ]
     list_filter = ["available", "created", "updated"]
     list_editable = ["price", "available", "discount"]
-    prepopulated_fields = {"slug": ("name",)}
     inlines = [ProductImageInline]

@@ -2,38 +2,115 @@
 
 ## Endpoints
 
-### Products
+### 1. all products
 
-- **List All Products**  
-  `GET http://127.0.0.1:8000/api/v1/product/`  
-  Returns a list of all products.
+- **GET** `/api/v1/product/`  
+  **Response**
+  ```json
+  [
+    {
+      "id": "integer",
+      "sell_price": "decimal",
+      "name": "string",
+      "image": "string (URL) or null",
+      "description": "string",
+      "price": "decimal",
+      "available": "boolean",
+      "created": "datetime (ISO 8601)",
+      "updated": "datetime (ISO 8601)",
+      "discount": "decimal",
+      "category": "integer"
+    }
+  ]
+  ```
 
-- **Product Detail**  
-  `GET http://127.0.0.1:8000/api/v1/product/{pk}/`  
-  Returns details of a specific product identified by its primary key (`pk`).
+### 2. specific product
 
-- **Product Search & Filtering**
-  `GET http://127.0.0.1:8000/api/v1/product/?search= `
-  `GET http://127.0.0.1:8000/api/v1/product/?price_min=`
-  `GET http://127.0.0.1:8000/api/v1/product/?price_max=`
-  `GET http://127.0.0.1:8000/api/v1/product/?discount_min=`
-  `GET http://127.0.0.1:8000/api/v1/product/?discount_max=`
-  `GET http://127.0.0.1:8000/api/v1/product/?available=`
-  You can combine them
+- **GET** `/api/v1/product/{pk}/`  
+  `GET http://127.0.0.1:8000`  
+  **Response**
+  ```json
+  {
+    "id": "integer",
+    "sell_price": "decimal",
+    "name": "string",
+    "image": "string (URL) or null",
+    "description": "string",
+    "price": "decimal",
+    "available": "boolean",
+    "created": "datetime (ISO 8601)",
+    "updated": "datetime (ISO 8601)",
+    "discount": "decimal",
+    "category": "integer"
+  }
+  ```
 
-### Categories
+### 3. **Product Search & Filtering**
 
-- **List All Categories**  
-  `GET http://127.0.0.1:8000/api/v1/category/`  
-  Returns a list of all categories.
+You can filter and search products using the following query parameters:
 
-- **Category Detail**  
-  `GET http://127.0.0.1:8000/api/v1/category/{pk}/`  
-  Returns details of a specific category identified by its primary key (`pk`).
+- `?search=` – Search by product name (case insensitive).
+- `?price_min=` – Filter by minimum selling price.
+- `?price_max=` – Filter by maximum selling price.
+- `?discount_min=` – Filter by minimum discount percentage.
+- `?discount_max=` – Filter by maximum discount percentage.
+- `?available=` – Filter by availability (`True` or `False`).
 
-- **Products by Category**  
-  `GET http://127.0.0.1:8000/api/v1/category/{pk}/products/`  
-  Returns a list of products that belong to the specified category.
+You can combine these parameters for advanced filtering.
+
+Works with the following endpoints:
+
+- **All Products:**  
+  `GET /api/v1/product/`
+
+- **Products by Category:**  
+  `GET /api/v1/category/{pk}/products/`
+
+### 1. all categories
+
+- **GET** `/api/v1/category/`  
+  **Response**
+  ```json
+  [
+    {
+      "id": "integer",
+      "name": "string"
+    }
+  ]
+  ```
+
+### 2. specific categoty
+
+- **GET** `/api/v1/category/{pk}/`  
+  **Response**
+  ```json
+  {
+    "id": "integer",
+    "name": "string"
+  }
+  ```
+
+### 3. products by category
+
+- **GET** `/api/v1/category/{pk}/products/`  
+  **Response**
+  ```json
+  [
+    {
+      "id": "integer",
+      "sell_price": "decimal",
+      "name": "string",
+      "image": "string or null",
+      "description": "string",
+      "price": "decimal",
+      "available": "boolean",
+      "created": "datetime",
+      "updated": "datetime",
+      "discount": "decimal",
+      "category": "integer"
+    }
+  ]
+  ```
 
 # Cart Service (API2)
 
