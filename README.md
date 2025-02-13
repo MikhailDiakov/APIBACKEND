@@ -127,12 +127,15 @@ Works with the following endpoints:
         "product_id": "string",
         "name": "string",
         "price": "decimal",
+        "discount": "decimal",
         "quantity": "integer",
         "image": "string",
+        "price_after_discount:": "decimal",
         "price_per_item": "decimal"
       }
     ],
-    "total_price": "decimal"
+    "total_price": "decimal",
+    "cart_key": "string"
   }
   ```
 
@@ -153,7 +156,8 @@ Works with the following endpoints:
     "product_id": "string",
     "quantity": "integer",
     "name": "string",
-    "price": "decimal"
+    "price": "decimal",
+    "discount": "decimal"
   }
   ```
 
@@ -208,5 +212,123 @@ Works with the following endpoints:
     "message": "Quantity updated successfully.",
     "product_id": "string",
     "new_quantity": "integer"
+  }
+  ```
+
+### 6. Get User Cart only for ANOTHER SERVICE
+
+- **GET** `/api/v1/cart/get_user_cart/`
+- **Request Parameters**:
+  ```json
+  {
+    "cart_key": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "cart_details": [
+      {
+        "product_id": "string",
+        "name": "string",
+        "price": "decimal",
+        "discount": "decimal",
+        "quantity": "integer",
+        "image": "string",
+        "price_after_discount": "decimal",
+        "price_per_item": "decimal"
+      }
+    ],
+    "total_price": "decimal"
+  }
+  ```
+
+### 7. Clear User Cart only for ANOTHER SERVICE
+
+- **DELETE** `/api/v1/cart/clear_user_cart/`
+- **Request Body**:
+  ```json
+  {
+    "cart_key": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Cart {cart_key} cleared"
+  }
+  ```
+
+# Order Service (API3)
+
+## Endpoints
+
+### 1. Create Order
+
+- **POST** `/api/v1/order/create_order/`
+- **Request Body**:
+  ```json
+  {
+    "cart_key": "string",
+    "shipping_address": "string",
+    "first_name": "string",
+    "last_name": "string",
+    "phone": "string",
+    "email": "string",
+    "notes": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Order created successfully",
+    "order_id": "integer",
+    "cart_key": "string"
+  }
+  ```
+
+### 2. Update Order only for ANOTHER SERVICE
+
+- **POST** `/api/v1/order/update_order/`
+- **Request Body**:
+  ```json
+  {
+    "order_id": "integer",
+    "status": "string",
+    "is_paid": "boolean"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Order updated successfully."
+  }
+  ```
+
+### 3. Get Orders only for ANOTHER SERVICE
+
+- **GET** `/api/v1/order/get_orders/`
+- **Request Parameters**:
+  ```json
+  {
+    "cart_key": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "orders": [
+      {
+        "order_id": "integer",
+        "total_price": "decimal",
+        "status": "string",
+        "is_paid": "boolean",
+        "shipping_address": "string",
+        "first_name": "string",
+        "last_name": "string",
+        "phone": "string",
+        "email": "string"
+      }
+    ]
   }
   ```

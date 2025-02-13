@@ -93,6 +93,7 @@ class CartViewSet(viewsets.ViewSet):
             {
                 "cart_details": cart_details,
                 "total_price": total_price,
+                "cart_key": self.cart_key,
             }
         )
 
@@ -152,7 +153,6 @@ class CartViewSet(viewsets.ViewSet):
                 "name": product_info["name"],
                 "price": product_info["price"],
                 "discount": product_info["discount"],
-                "cart_key": self.cart_key,
             },
             status=status.HTTP_200_OK,
         )
@@ -286,8 +286,38 @@ class CartViewSet(viewsets.ViewSet):
             for key, value in cart_data.items()
         }
 
+        total_price = Decimal(0)
+        cart_details = []
+
+        for product_id, product_data in cart_data.items():
+            quantity = int(product_data["quantity"])
+            price = Decimal(product_data["price"])
+            discount = Decimal(product_data["discount"])
+            price_after_discount = price * (1 - discount / 100)
+            price_per_item = price_after_discount * quantity
+
+            total_price += price_per_item
+
+            cart_details.append(
+                {
+                    "product_id": product_id,
+                    "name": product_data["name"],
+                    "price": price,
+                    "discount": discount,
+                    "quantity": quantity,
+                    "image": product_data["image"],
+                    "price_after_discount": price_after_discount,
+                    "price_per_item": price_per_item,
+                }
+            )
+
+        total_price = str(total_price)
+
         return Response(
-            {"cart_details": cart_data},
+            {
+                "cart_details": cart_details,
+                "total_price": total_price,
+            },
             status=status.HTTP_200_OK,
         )
 
