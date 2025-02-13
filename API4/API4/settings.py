@@ -134,5 +134,3 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
     ],
 }
-
-MICROSERVICE_API_KEY = "your-unique-microservice-api-key"

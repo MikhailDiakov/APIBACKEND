@@ -112,7 +112,14 @@ Works with the following endpoints:
   ]
   ```
 
-## **Create, update, delete products and category for Admin from user service**
+### **Create, update, delete products and category for Admin(is_staff) from user service**
+
+- **POST** `/api/v1/product/`
+- **PUT** `/api/v1/product/{pk}/`
+- **DELETE** `/api/v1/product/{pk}/`
+- **POST** `/api/v1/category/`
+- **PUT** `/api/v1/category/{pk}`
+- **DELETE** `/api/v1/category/{pk}`
 
 # Cart Service (API2)
 
@@ -342,4 +349,4 @@ Works with the following endpoints:
 - **GET** `/api/v1/users/me/`
 - **POST** `/api/v1/users/me/update/`
 - **POST** `/api/v1/users/me/change-password/`
-- **GET** `/api/v1/users/check-admin-status/` - only for service
+- **GET** `/api/v1/users/check-admin-status/` - only for service(or Admin)

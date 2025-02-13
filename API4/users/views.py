@@ -1,6 +1,6 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
@@ -93,16 +93,7 @@ class ChangePasswordView(APIView):
 
 
 class CheckAdminStatusView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
     def get(self, request, *args, **kwargs):
-        api_key = request.headers.get("X-MICROSERVICE-API-KEY")
-        if api_key != settings.MICROSERVICE_API_KEY:
-            return Response(
-                {"detail": "Invalid API Key"}, status=status.HTTP_403_FORBIDDEN
-            )
-
-        if request.user.is_superuser:
-            return Response({"is_admin": True})
-        else:
-            return Response({"is_admin": False})
+        return Response({"is_admin": True})

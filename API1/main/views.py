@@ -27,10 +27,7 @@ class ProductAPIview(viewsets.ModelViewSet):
         if not token:
             return None
 
-        headers = {
-            "Authorization": token,
-            "X-MICROSERVICE-API-KEY": settings.MICROSERVICE_API_KEY,
-        }
+        headers = {"Authorization": token}
         response = requests.get(
             f"{USER_SERVICE_URL}check-admin-status/", headers=headers
         )
@@ -78,10 +75,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if not token:
             return None
 
-        headers = {
-            "Authorization": token,
-            "X-MICROSERVICE-API-KEY": settings.MICROSERVICE_API_KEY,
-        }
+        headers = {"Authorization": token}
         response = requests.get(
             f"{USER_SERVICE_URL}check-admin-status/", headers=headers
         )
