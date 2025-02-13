@@ -6,20 +6,118 @@ from rest_framework.response import Response
 from .serializers import ProductSerializer, CategorySerializer
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+import requests
+from django.conf import settings
+
 from .filters import ProductFilter
 
+USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
 
-class ProductAPIview(viewsets.ReadOnlyModelViewSet):
+
+class ProductAPIview(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     filter_backends = (DjangoFilterBackend, SearchFilter)
     filterset_class = ProductFilter
     search_fields = ["name"]
 
+    def get_user(self, request):
+        token = request.headers.get("Authorization")
+        if not token:
+            return None
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+        headers = {
+            "Authorization": token,
+            "X-MICROSERVICE-API-KEY": settings.MICROSERVICE_API_KEY,
+        }
+        response = requests.get(
+            f"{USER_SERVICE_URL}check-admin-status/", headers=headers
+        )
+
+        if response.status_code == 200:
+            user_data = response.json()
+            if user_data.get("is_admin"):
+                return user_data
+        return None
+
+    def create(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().create(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().update(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().destroy(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+    def get_user(self, request):
+        token = request.headers.get("Authorization")
+        if not token:
+            return None
+
+        headers = {
+            "Authorization": token,
+            "X-MICROSERVICE-API-KEY": settings.MICROSERVICE_API_KEY,
+        }
+        response = requests.get(
+            f"{USER_SERVICE_URL}check-admin-status/", headers=headers
+        )
+
+        if response.status_code == 200:
+            user_data = response.json()
+            if user_data.get("is_admin"):
+                return user_data
+        return None
+
+    def create(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().create(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().update(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_user(request)
+        if user:
+            return super().destroy(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     @action(methods=["get"], detail=True)
     def products(self, request, pk=None):

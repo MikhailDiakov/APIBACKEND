@@ -112,6 +112,8 @@ Works with the following endpoints:
   ]
   ```
 
+## **Create, update, delete products and category for Admin from user service**
+
 # Cart Service (API2)
 
 ## Endpoints
@@ -305,15 +307,10 @@ Works with the following endpoints:
   }
   ```
 
-### 3. Get Orders only for ANOTHER SERVICE
+### 3. Get Orders with Token Authorization only for
 
 - **GET** `/api/v1/order/get_orders/`
 - **Request Parameters**:
-  ```json
-  {
-    "cart_key": "string"
-  }
-  ```
 - **Response**:
   ```json
   {
@@ -332,3 +329,17 @@ Works with the following endpoints:
     ]
   }
   ```
+
+# User Service (API4)
+
+## Endpoints
+
+### All comands
+
+- **POST** `/api/v1/users/register/`
+- **POST** `/api/v1/users/login/`
+- **POST** `/api/v1/users/logout/`
+- **GET** `/api/v1/users/me/`
+- **POST** `/api/v1/users/me/update/`
+- **POST** `/api/v1/users/me/change-password/`
+- **GET** `/api/v1/users/check-admin-status/` - only for service

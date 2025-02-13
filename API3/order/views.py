@@ -9,6 +9,7 @@ from decimal import Decimal
 from rest_framework.permissions import BasePermission
 
 CART_SERVICE_URL = "http://127.0.0.1:8001/api/v1/cart/"
+USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
 
 
 class MicroservicePermission(BasePermission):
@@ -149,20 +150,23 @@ class OrderViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def get_orders(self, request):
-        permission = MicroservicePermission()
-        if not permission.has_permission(request, self):
-            return Response(
-                {"error": "Forbidden. Invalid API key."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        token = request.headers.get("Authorization", "").replace("Token ", "")
 
-        cart_key = request.data.get("cart_key")
-        if not cart_key:
+        if token:
+            user_info = self.get_user_info(token)
+            if user_info:
+                user_id = user_info.get("id")
+                cart_key = f"cart_{user_id}"
+            else:
+                return Response(
+                    {"error": "Invalid token."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+        else:
             return Response(
-                {"error": "Cart key is required."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
-
         orders = Order.objects.filter(cart_key=cart_key)
 
         if not orders:
@@ -190,3 +194,12 @@ class OrderViewSet(viewsets.ViewSet):
             {"orders": order_data},
             status=status.HTTP_200_OK,
         )
+
+    def get_user_info(self, token):
+        url = f"{USER_SERVICE_URL}me/"
+        headers = {"Authorization": f"Token {token}"}
+        response = requests.get(url, headers=headers, timeout=5)
+
+        if response.status_code == 200:
+            return response.json()
+        return None

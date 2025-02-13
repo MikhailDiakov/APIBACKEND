@@ -12,6 +12,7 @@ from decimal import Decimal
 from rest_framework.permissions import BasePermission
 
 PRODUCT_SERVICE = "http://127.0.0.1:8000/api/v1/product/"
+USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
 
 redis_client = redis.StrictRedis(
     host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0, decode_responses=True
@@ -28,22 +29,34 @@ class CartViewSet(viewsets.ViewSet):
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
 
-        if not request.user.is_authenticated:
+        token = request.headers.get("Authorization", "").replace("Token ", "")
+
+        if token:
+            user_info = self.get_user_info(token)
+            if user_info:
+                request.user_id = user_info.get("id")
+            else:
+                return Response(
+                    {"detail": "Invalid token."}, status=status.HTTP_401_UNAUTHORIZED
+                )
+        else:
             if "cart_token" not in request.session:
                 request.session["cart_token"] = uuid.uuid4().hex[:16]
                 request.session.modified = True
+            request.user_id = request.session.get("cart_token")
 
-        self.cart_key = (
-            f"cart_{request.user.id}"
-            if request.user.is_authenticated
-            else f"cart_{request.session.get('cart_token', 'default_guest')}"
-        )
+        self.cart_key = f"cart_{request.user_id}"
 
-        self.cart_ttl = (
-            timedelta(days=7)
-            if request.user.is_authenticated
-            else timedelta(minutes=30)
-        )
+        self.cart_ttl = timedelta(days=7) if token else timedelta(minutes=30)
+
+    def get_user_info(self, token):
+        url = f"{USER_SERVICE_URL}me/"
+        headers = {"Authorization": f"Token {token}"}
+        response = requests.get(url, headers=headers, timeout=5)
+
+        if response.status_code == 200:
+            return response.json()
+        return None
 
     def get_product_info(self, product_id):
         url = f"{PRODUCT_SERVICE}{product_id}/"
