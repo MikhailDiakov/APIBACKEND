@@ -11,7 +11,6 @@ class Order(models.Model):
         (COMPLETED, "Completed"),
         (CANCELLED, "Cancelled"),
     ]
-    user_id = models.CharField(max_length=255, null=True, blank=True)
     cart_key = models.CharField(max_length=255, unique=True)
     total_price = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal(0)
@@ -21,9 +20,11 @@ class Order(models.Model):
     )
     is_paid = models.BooleanField(default=False)
     shipping_address = models.TextField()
+    city = models.CharField(max_length=100)
+    postcode = models.CharField(max_length=20)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=20, null=True, blank=True)
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

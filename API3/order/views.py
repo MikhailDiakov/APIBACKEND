@@ -29,9 +29,11 @@ class OrderViewSet(viewsets.ViewSet):
             )
 
         shipping_address = request.data.get("shipping_address")
+        city = request.data.get("city")
+        postcode = request.data.get("postcode")
         first_name = request.data.get("first_name")
         last_name = request.data.get("last_name")
-        phone = request.data.get("phone", "")
+        phone_number = request.data.get("phone_number", "")
         email = request.data.get("email", "")
         notes = request.data.get("notes", "")
 
@@ -60,9 +62,11 @@ class OrderViewSet(viewsets.ViewSet):
             total_price=total_price,
             status=Order.PENDING,
             shipping_address=shipping_address,
+            city=city,
+            postcode=postcode,
             first_name=first_name,
             last_name=last_name,
-            phone=phone,
+            phone_number=phone_number,
             email=email,
             notes=notes,
             is_paid=False,
@@ -105,17 +109,25 @@ class OrderViewSet(viewsets.ViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["put"])
     def update_order(self, request):
         permission = MicroservicePermission()
-        if not permission.has_permission(request, self):
+        is_microservice = permission.has_permission(request, self)
+        is_admin = False
+
+        if not is_microservice:
+            user = self.get_user(request)
+            if user:
+                is_admin = True
+
+        if not is_microservice and not is_admin:
             return Response(
-                {"error": "Forbidden. Invalid API key."},
+                {"error": "Forbidden. Access denied."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         order_id = request.data.get("order_id")
-        status = request.data.get("status")
+        status_value = request.data.get("status")
         is_paid = request.data.get("is_paid")
 
         if not order_id:
@@ -131,15 +143,14 @@ class OrderViewSet(viewsets.ViewSet):
                 {"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        if status:
-            if status not in [Order.PENDING, Order.COMPLETED, Order.CANCELLED]:
+        if status_value:
+            if status_value not in [Order.PENDING, Order.COMPLETED, Order.CANCELLED]:
                 return Response(
                     {"error": "Invalid status value."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            order.status = status
-
-        if is_paid is not None:
+            order.status = status_value
+        if is_microservice and is_paid is not None:
             order.is_paid = is_paid
 
         order.save()
@@ -147,6 +158,22 @@ class OrderViewSet(viewsets.ViewSet):
         return Response(
             {"message": "Order updated successfully."}, status=status.HTTP_200_OK
         )
+
+    def get_user(self, request):
+        token = request.headers.get("Authorization")
+        if not token:
+            return None
+
+        headers = {"Authorization": token}
+        response = requests.get(
+            f"{USER_SERVICE_URL}check-admin-status/", headers=headers
+        )
+
+        if response.status_code == 200:
+            user_data = response.json()
+            if user_data.get("is_admin"):
+                return user_data
+        return None
 
     @action(detail=False, methods=["get"])
     def get_orders(self, request):

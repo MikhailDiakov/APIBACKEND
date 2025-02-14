@@ -314,7 +314,7 @@ Works with the following endpoints:
   }
   ```
 
-### 3. Get Orders with Token Authorization only for
+### 3. Get Orders with Token Authorization
 
 - **GET** `/api/v1/order/get_orders/`
 - **Request Parameters**:
@@ -337,6 +337,10 @@ Works with the following endpoints:
   }
   ```
 
+### 4. Update status(for Admin) and paid(for Service) for order
+
+- **PUT** `/api/v1/order/update_order/`
+
 # User Service (API4)
 
 ## Endpoints
@@ -347,6 +351,6 @@ Works with the following endpoints:
 - **POST** `/api/v1/users/login/`
 - **POST** `/api/v1/users/logout/`
 - **GET** `/api/v1/users/me/`
-- **POST** `/api/v1/users/me/update/`
+- **PUT** `/api/v1/users/me/update/`
 - **POST** `/api/v1/users/me/change-password/`
 - **GET** `/api/v1/users/check-admin-status/` - only for service(or Admin)
