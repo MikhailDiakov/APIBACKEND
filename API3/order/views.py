@@ -138,6 +138,11 @@ class OrderViewSet(viewsets.ViewSet):
                 {"error": "Order ID is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if status_value not in dict(Order.STATUS_CHOICES):
+            return Response(
+                {"error": "Invalid status value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         update_order_task.delay(
             order_id=order_id,

@@ -372,6 +372,34 @@ Works with the following endpoints:
 - **POST** `/api/v1/users/me/change-password/`
 - **GET** `/api/v1/users/check-admin-status/` - only for for Admin
 
+- **POST** `/api/v1/users/reset-password/`
+- **Request Parameters**:
+  ```json
+  {
+    "email": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "detail": "If an account with that email exists, a password reset email has been sent."
+  }
+  ```
+- **POST** `/api/v1/users/reset-password/confirm/?uidb64={UIDB64}&token={TOKEN}` - from email
+- **Request Parameters**:
+  ```json
+  {
+    "new_password": "string",
+    "confirm_password": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "detail": "Password has been reset."
+  }
+  ```
+
 # Payment Service (API5)
 
 ## Endpoints

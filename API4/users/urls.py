@@ -1,3 +1,4 @@
+# urls.py
 from django.urls import path
 from .views import (
     RegisterView,
@@ -6,6 +7,8 @@ from .views import (
     ProfileUpdateView,
     ChangePasswordView,
     CheckAdminStatusView,
+    CustomPasswordResetView,
+    CustomPasswordResetConfirmView,
 )
 from rest_framework.authtoken import views as auth_views
 
@@ -18,5 +21,11 @@ urlpatterns = [
     path("me/change-password/", ChangePasswordView.as_view(), name="change-password"),
     path(
         "check-admin-status/", CheckAdminStatusView.as_view(), name="check_admin_status"
+    ),
+    path("reset-password/", CustomPasswordResetView.as_view(), name="reset-password"),
+    path(
+        "reset-password/confirm/",
+        CustomPasswordResetConfirmView.as_view(),
+        name="reset-password-confirm",
     ),
 ]
