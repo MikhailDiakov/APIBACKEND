@@ -19,6 +19,7 @@ class Order(models.Model):
         max_length=10, choices=ORDER_STATUS_CHOICES, default=PENDING
     )
     is_paid = models.BooleanField(default=False)
+    payment_intent = models.CharField(max_length=255, blank=True, null=True)
     shipping_address = models.TextField()
     city = models.CharField(max_length=100)
     postcode = models.CharField(max_length=20)

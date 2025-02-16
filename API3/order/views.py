@@ -7,6 +7,8 @@ from django.conf import settings
 import requests
 from decimal import Decimal
 from rest_framework.permissions import BasePermission
+from .tasks import update_order_task
+import re
 
 CART_SERVICE_URL = "http://127.0.0.1:8001/api/v1/cart/"
 USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
@@ -129,6 +131,7 @@ class OrderViewSet(viewsets.ViewSet):
         order_id = request.data.get("order_id")
         status_value = request.data.get("status")
         is_paid = request.data.get("is_paid")
+        payment_intent = request.data.get("payment_intent")
 
         if not order_id:
             return Response(
@@ -136,24 +139,12 @@ class OrderViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            order = Order.objects.get(id=order_id)
-        except Order.DoesNotExist:
-            return Response(
-                {"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        if status_value:
-            if status_value not in [Order.PENDING, Order.COMPLETED, Order.CANCELLED]:
-                return Response(
-                    {"error": "Invalid status value."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            order.status = status_value
-        if is_microservice and is_paid is not None:
-            order.is_paid = is_paid
-
-        order.save()
+        update_order_task.delay(
+            order_id=order_id,
+            status_value=status_value,
+            is_paid=is_paid if is_microservice else None,
+            payment_intent=payment_intent,
+        )
 
         return Response(
             {"message": "Order updated successfully."}, status=status.HTTP_200_OK
@@ -211,7 +202,7 @@ class OrderViewSet(viewsets.ViewSet):
                 "shipping_address": order.shipping_address,
                 "first_name": order.first_name,
                 "last_name": order.last_name,
-                "phone": order.phone,
+                "phone_number": order.phone_number,
                 "email": order.email,
             }
             for order in orders
@@ -230,3 +221,71 @@ class OrderViewSet(viewsets.ViewSet):
         if response.status_code == 200:
             return response.json()
         return None
+
+    @action(detail=True, methods=["post"])
+    def get_order_by_id(self, request, pk=None):
+        permission = MicroservicePermission()
+        is_microservice = permission.has_permission(request, self)
+
+        if not is_microservice:
+            return Response(
+                {"error": "Forbidden. Access denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            order = Order.objects.get(id=pk)
+        except Order.DoesNotExist:
+            return Response(
+                {"error": "Order not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        token = request.headers.get("Authorization", "").replace("Token ", "")
+        user_info = self.get_user_info(token) if token else None
+
+        if user_info:
+            user_id = user_info.get("id")
+            if order.cart_key != f"cart_{user_id}":
+                return Response(
+                    {"error": "Forbidden. This order does not belong to you."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            cart_key = request.data.get("cart_key")
+            if (
+                not cart_key
+                or order.cart_key != cart_key
+                or is_sequential_cart_key(cart_key)
+            ):
+                return Response(
+                    {"error": "Forbidden. Invalid cart key."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        items_data = [
+            {
+                "product_name": item.name,
+                "quantity": item.quantity,
+                "unit_price": str(item.price_after_discount),
+            }
+            for item in order.items.all()
+        ]
+
+        order_data = {
+            "order_id": order.id,
+            "total_price": str(order.total_price),
+            "items": items_data,
+        }
+
+        return Response(
+            {"order": order_data},
+            status=status.HTTP_200_OK,
+        )
+
+
+def is_sequential_cart_key(cart_key):
+    if re.match(r"^cart_\d+$", cart_key):
+        number_part = cart_key.split("_")[1]
+        return number_part.isdigit() and int(number_part) == int(number_part)
+    return False

@@ -296,7 +296,7 @@ Works with the following endpoints:
   }
   ```
 
-### 2. Update Order only for ANOTHER SERVICE
+### 2. Update status(for Admin) and paid(for Service) for order
 
 - **POST** `/api/v1/order/update_order/`
 - **Request Body**:
@@ -314,7 +314,7 @@ Works with the following endpoints:
   }
   ```
 
-### 3. Get Orders with Token Authorization
+### 3. Get all Orders authorized user, with Token Authorization
 
 - **GET** `/api/v1/order/get_orders/`
 - **Request Parameters**:
@@ -337,9 +337,26 @@ Works with the following endpoints:
   }
   ```
 
-### 4. Update status(for Admin) and paid(for Service) for order
+### 4. Order by id only for service and only if the order belongs to a user or a guest who makes the request
 
-- **PUT** `/api/v1/order/update_order/`
+- **POST** `/api/v1/order/{pk}/get_order_by_id/`
+- **Request Parameters**:
+- **Response**:
+  ```json
+  {
+    "order": {
+      "order_id": "integer",
+      "total_price": "decimal",
+      "items": [
+        {
+          "product_name": "string",
+          "quantity": "integer",
+          "unit_price": "decimal"
+        }
+      ]
+    }
+  }
+  ```
 
 # User Service (API4)
 
@@ -353,4 +370,39 @@ Works with the following endpoints:
 - **GET** `/api/v1/users/me/`
 - **PUT** `/api/v1/users/me/update/`
 - **POST** `/api/v1/users/me/change-password/`
-- **GET** `/api/v1/users/check-admin-status/` - only for service(or Admin)
+- **GET** `/api/v1/users/check-admin-status/` - only for for Admin
+
+# Payment Service (API5)
+
+## Endpoints
+
+### 1. Create payment link
+
+- **POST** `/api/v1/payments/create-checkout-session/`
+- For guest users, cart_key is required to identify the cart.
+- For authenticated users, cart_key can be omitted, as the system will use the user_id from token.
+- **Request Parameters**:
+  ```json
+  {
+    "order_id": "integer",
+    "cart_key": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "checkout_url": "string"
+  }
+  ```
+- **After the payment is processed, if successful**:
+  ```json
+  {
+    "status": "success"
+  }
+  ```
+- **If the payment is canceled or failed**:
+  ```json
+  {
+    "status": "canceled"
+  }
+  ```
