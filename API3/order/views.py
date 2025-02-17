@@ -10,8 +10,8 @@ from rest_framework.permissions import BasePermission
 from .tasks import update_order_task
 import re
 
-CART_SERVICE_URL = "http://127.0.0.1:8001/api/v1/cart/"
-USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
+CART_SERVICE_URL = settings.CART_SERVICE_URL
+USER_SERVICE_URL = settings.USER_SERVICE_URL
 
 
 class MicroservicePermission(BasePermission):

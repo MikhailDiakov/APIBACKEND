@@ -11,8 +11,8 @@ import uuid
 from decimal import Decimal
 from rest_framework.permissions import BasePermission
 
-PRODUCT_SERVICE = "http://127.0.0.1:8000/api/v1/product/"
-USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
+PRODUCT_SERVICE = settings.PRODUCT_SERVICE
+USER_SERVICE_URL = settings.USER_SERVICE_URL
 
 redis_client = redis.StrictRedis(
     host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0, decode_responses=True

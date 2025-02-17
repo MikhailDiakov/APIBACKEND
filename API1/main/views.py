@@ -12,7 +12,7 @@ from django.conf import settings
 
 from .filters import ProductFilter
 
-USER_SERVICE_URL = "http://127.0.0.1:8003/api/v1/users/"
+USER_SERVICE_URL = settings.USER_SERVICE_URL
 
 
 class ProductAPIview(viewsets.ModelViewSet):

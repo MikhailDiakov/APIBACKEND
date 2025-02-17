@@ -10,8 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-4n+9w(yb=m1_fq&bi+kr)gwf_7zv&gjj3xnqc6lcp_n4+v2z+%"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -77,10 +81,19 @@ WSGI_APPLICATION = "API3.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://localhost",
+    "https://127.0.0.1",
+]
 
 
 # Password validation
@@ -117,15 +130,25 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = "static/"
-
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
+STATIC_ROOT = os.path.join(BASE_DIR, "/app/staticfiles")
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-MICROSERVICE_API_KEY = "your-unique-microservice-api-key"
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"
+MEDIA_URL = os.environ.get("MEDIA_URL", "/media/")
+MEDIA_ROOT = BASE_DIR / "media"
+
+MICROSERVICE_API_KEY = os.environ.get("MICROSERVICE_API_KEY")
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+
+PRODUCT_SERVICE = "http://nginx:80/api/v1/product/"
+CART_SERVICE_URL = "http://nginx:80/api/v1/cart/"
+ORDER_SERVICE_URL = "http://nginx:80/api/v1/order/"
+USER_SERVICE_URL = "http://nginx:80/api/v1/users/"
+PAYMENT_SERVICE_URL = "http://nginx:80/api/v1/payments/"

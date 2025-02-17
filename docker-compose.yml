@@ -1,0 +1,262 @@
+version: "3.8"
+
+x-environment-defaults: &environment-defaults
+  MICROSERVICE_API_KEY: "${MICROSERVICE_API_KEY}"
+  AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+  AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+  AWS_STORAGE_BUCKET_NAME: "${AWS_STORAGE_BUCKET_NAME}"
+  AWS_S3_REGION_NAME: "${AWS_S3_REGION_NAME}"
+  SECRET_KEY: "${SECRET_KEY}"
+  DEBUG: "True"
+  DB_NAME: "${DB_NAME}"
+  DB_USER: "${DB_USER}"
+  DB_PASSWORD: "${DB_PASSWORD}"
+  DB_PORT: 5432
+  REDIS_HOST: "redis"
+  REDIS_PORT: 6379
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+  STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
+  STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+  STRIPE_API_VERSION: "${STRIPE_API_VERSION}"
+  EMAIL_HOST: "${EMAIL_HOST}"
+  EMAIL_PORT: "${EMAIL_PORT}"
+  EMAIL_USE_TLS: "${EMAIL_USE_TLS}"
+  EMAIL_HOST_USER: "${EMAIL_HOST_USER}"
+  EMAIL_HOST_PASSWORD: "${EMAIL_HOST_PASSWORD}"
+
+services:
+  # Product service (API1)
+  product_service:
+    build:
+      context: ./API1
+    volumes:
+      - ./API1:/app
+    ports:
+      - "8000:8000"
+    networks:
+      - microservice-network
+    depends_on:
+      - product_db
+    environment:
+      <<: *environment-defaults
+      DB_HOST: product_db
+    restart: on-failure:5
+
+  # Cart service (API2)
+  cart_service:
+    build:
+      context: ./API2
+    volumes:
+      - ./API2:/app
+    ports:
+      - "8001:8001"
+    networks:
+      - microservice-network
+    depends_on:
+      - cart_db
+      - redis
+    environment:
+      <<: *environment-defaults
+      DB_HOST: cart_db
+    restart: on-failure:5
+
+  # Order service (API3)
+  order_service:
+    build:
+      context: ./API3
+    volumes:
+      - ./API3:/app
+    ports:
+      - "8002:8002"
+    networks:
+      - microservice-network
+    depends_on:
+      - order_db
+    environment:
+      <<: *environment-defaults
+      DB_HOST: order_db
+    restart: on-failure:5
+
+  # User service (API4)
+  user_service:
+    build:
+      context: ./API4
+    volumes:
+      - ./API4:/app
+    ports:
+      - "8003:8003"
+    networks:
+      - microservice-network
+    depends_on:
+      - user_db
+    environment:
+      <<: *environment-defaults
+      DB_HOST: user_db
+    restart: on-failure:5
+
+  # Payment service (API5)
+  payment_service:
+    build:
+      context: ./API5
+    volumes:
+      - ./API5:/app
+    ports:
+      - "8004:8004"
+    networks:
+      - microservice-network
+    depends_on:
+      - payment_db
+      - redis
+    environment:
+      <<: *environment-defaults
+      DB_HOST: payment_db
+    restart: on-failure:5
+
+  # PostgreSQL databases for each service
+  product_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - product_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  cart_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - cart_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  order_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  user_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  payment_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  # Redis for cart and payment services
+  redis:
+    image: redis:latest
+    networks:
+      - microservice-network
+    volumes:
+      - redis_data:/data
+    restart: on-failure:5
+
+  # Nginx
+  nginx:
+    build:
+      context: .
+      dockerfile: conf/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - microservice-network
+    depends_on:
+      - user_service
+      - cart_service
+      - product_service
+      - order_service
+      - payment_service
+
+  # Stripe
+  stripe-listener:
+    image: stripe/stripe-cli
+    command: >
+      listen --forward-to payment_service:8004/api/v1/webhook/
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_DEVICE_NAME=stripe-listener
+    networks:
+      - microservice-network
+    depends_on:
+      - payment_service
+
+  # Celery for service
+  order_celery:
+    build:
+      context: ./API3
+    command: celery -A API3 worker --loglevel=info
+    volumes:
+      - ./API3:/app
+    depends_on:
+      - redis
+      - order_db
+      - order_service
+    networks:
+      - microservice-network
+    environment:
+      <<: *environment-defaults
+      DB_HOST: order_db
+    restart: on-failure:5
+
+  user_celery:
+    build:
+      context: ./API4
+    command: celery -A API4 worker --loglevel=info
+    volumes:
+      - ./API4:/app
+    depends_on:
+      - redis
+      - user_db
+      - user_service
+    networks:
+      - microservice-network
+    environment:
+      <<: *environment-defaults
+      DB_HOST: user_db
+    restart: on-failure:5
+
+networks:
+  microservice-network:
+    driver: bridge
+
+volumes:
+  product_db_data:
+  cart_db_data:
+  order_db_data:
+  user_db_data:
+  payment_db_data:
+  redis_data:

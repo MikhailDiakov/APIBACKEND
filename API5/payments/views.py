@@ -7,7 +7,7 @@ import json
 import requests
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
-ORDER_SERVICE_URL = "http://127.0.0.1:8002/api/v1/order/"
+ORDER_SERVICE_URL = settings.ORDER_SERVICE_URL
 
 
 @csrf_exempt
