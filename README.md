@@ -27,7 +27,6 @@
 ### 2. specific product
 
 - **GET** `/api/v1/product/{pk}/`  
-  `GET http://127.0.0.1:8000`  
   **Response**
   ```json
   {
@@ -278,8 +277,10 @@ Works with the following endpoints:
 - **Request Body**:
   ```json
   {
-    "cart_key": "string",
+    "cart_key": "cart_a0c42c357fe14de0",
     "shipping_address": "string",
+    "city": "string",
+    "postcode": "string",
     "first_name": "string",
     "last_name": "string",
     "phone": "string",
@@ -300,11 +301,20 @@ Works with the following endpoints:
 
 - **POST** `/api/v1/order/update_order/`
 - **Request Body**:
+- Admin
   ```json
   {
     "order_id": "integer",
-    "status": "string",
-    "is_paid": "boolean"
+    "status": "string"
+  }
+  ```
+- Service
+  ```json
+  {
+  "order_id": "integer"r,
+  "is_paid": true or false,
+  "payment_intent": "string",
+   "status": "string"
   }
   ```
 - **Response**:
@@ -337,10 +347,17 @@ Works with the following endpoints:
   }
   ```
 
-### 4. Order by id only for service and only if the order belongs to a user or a guest who makes the request
+### 4. Order by id only for SERVICE
 
 - **POST** `/api/v1/order/{pk}/get_order_by_id/`
+- For guest users, cart_key is required to identify the cart.
+- For authenticated users, cart_key can be omitted, as the system will use the user_id from token.
 - **Request Parameters**:
+  ```json
+  {
+    "cart_key": "string"
+  }
+  ```
 - **Response**:
   ```json
   {
@@ -362,15 +379,129 @@ Works with the following endpoints:
 
 ## Endpoints
 
-### All comands
+### Register
 
 - **POST** `/api/v1/users/register/`
+- **Request Parameters**:
+  ```json
+  {
+    "username": "string",
+    "password": "string",
+    "confirm_password": "string",
+    "email": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+      "message": "User registered successfully.",
+      "user": {
+          "id": integer,
+          "username": "string",
+          "email": "string",
+          "first_name": "string",
+          "last_name": "string",
+          "phone_number": "string" or null,
+          "city": "string" or null,
+          "address":"string" or null,
+          "postcode": "string" or null
+      }
+  }
+  ```
+
+### Login
+
 - **POST** `/api/v1/users/login/`
+- **Request Parameters**:
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "string"
+  }
+  ```
+
+### Logout
+
 - **POST** `/api/v1/users/logout/`
+- **Request Parameters**:
+  ```http
+  Authorization: Token <your_token_here>
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Logged out successfully."
+  }
+  ```
+
+### Me
+
 - **GET** `/api/v1/users/me/`
+- **Request Parameters**:
+  ```http
+  Authorization: Token <your_token_here>
+  ```
+- **Response**:
+  ```json
+  {
+      "id": integer,
+      "username": "string",
+      "email": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "phone_number": "string" or null,
+      "city": "string" or null,
+      "address":"string" or null,
+      "postcode": "string" or null
+  }
+  ```
+
+### Update
+
 - **PUT** `/api/v1/users/me/update/`
+- You can update this information
+  ```json
+  {
+      "first_name": "string",
+      "last_name": "string",
+      "phone_number": "string" or null,
+      "city": "string" or null,
+      "address":"string" or null,
+      "postcode": "string" or null
+  }
+  ```
+
+### Change Passwoord
+
 - **POST** `/api/v1/users/me/change-password/`
-- **GET** `/api/v1/users/check-admin-status/` - only for for Admin
+- **Request Parameters**:
+  ```http
+  Authorization: Token <your_token_here>
+  ```
+- **Response**:
+  ```json
+  {
+    "old_password": "string",
+    "new_password": "string",
+    "confirm_password": "string"
+  }
+  ```
+
+### Check admin status
+
+- **GET** `/api/v1/users/check-admin-status/` - only for for Admin, using in service.
+- **Request Parameters**:
+  ```http
+  Authorization: Token <your_token_here>
+  ```
+
+### Reset password with email
 
 - **POST** `/api/v1/users/reset-password/`
 - **Request Parameters**:

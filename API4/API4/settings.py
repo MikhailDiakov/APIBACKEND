@@ -138,8 +138,8 @@ REST_FRAMEWORK = {
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "USER"
-EMAIL_HOST_PASSWORD = "PASSWORD"
+EMAIL_HOST_USER = "keechaaworking1@gmail.com"
+EMAIL_HOST_PASSWORD = "xyaq pkqz oapo fecj"
 
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]

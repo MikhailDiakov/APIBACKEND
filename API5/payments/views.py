@@ -99,6 +99,7 @@ def stripe_webhook(request):
                 "order_id": order_id,
                 "is_paid": True,
                 "payment_intent": payment_intent,
+                "status": "completed",
             }
 
             order_response = requests.put(order_update_url, json=data, headers=headers)

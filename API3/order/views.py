@@ -138,7 +138,7 @@ class OrderViewSet(viewsets.ViewSet):
                 {"error": "Order ID is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if status_value not in dict(Order.STATUS_CHOICES):
+        if status_value not in dict(Order.ORDER_STATUS_CHOICES):
             return Response(
                 {"error": "Invalid status value."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -194,7 +194,7 @@ class OrderViewSet(viewsets.ViewSet):
 
         if not orders:
             return Response(
-                {"error": "No orders found for this cart key."},
+                {"error": "No orders found for this user."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
