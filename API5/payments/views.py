@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 import json
 import requests
-from logs_service import log_to_kafka
+from .logs_service import log_to_kafka
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 ORDER_SERVICE_URL = settings.ORDER_SERVICE_URL

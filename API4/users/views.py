@@ -221,6 +221,10 @@ class CustomPasswordResetView(APIView):
 
         protocol = "https" if self.request.is_secure() else "http"
         domain = self.request.get_host()
+        if not domain:
+            return Response(
+                {"error": "Domain is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         send_reset_email.delay(user.id, domain, protocol)
         log_to_kafka(

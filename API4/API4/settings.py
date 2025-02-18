@@ -178,3 +178,13 @@ CART_SERVICE_URL = "http://nginx:80/api/v1/cart/"
 ORDER_SERVICE_URL = "http://nginx:80/api/v1/order/"
 USER_SERVICE_URL = "http://nginx:80/api/v1/users/"
 PAYMENT_SERVICE_URL = "http://nginx:80/api/v1/payments/"
+
+from kombu import Queue
+
+CELERY_TASK_DEFAULT_QUEUE = "users"
+
+CELERY_TASK_QUEUES = (Queue("users", routing_key="users"),)
+
+CELERY_TASK_ROUTES = {
+    "users.tasks.*": {"queue": "users"},
+}

@@ -10,7 +10,7 @@ from rest_framework import status
 import requests
 from django.conf import settings
 from .filters import ProductFilter
-from logs_service import log_to_kafka
+from .logs_service import log_to_kafka
 
 USER_SERVICE_URL = settings.USER_SERVICE_URL
 

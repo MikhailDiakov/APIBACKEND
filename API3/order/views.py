@@ -9,7 +9,7 @@ from decimal import Decimal
 from rest_framework.permissions import BasePermission
 from .tasks import update_order_task
 import re
-from logs_service import log_to_kafka
+from .logs_service import log_to_kafka
 
 CART_SERVICE_URL = settings.CART_SERVICE_URL
 USER_SERVICE_URL = settings.USER_SERVICE_URL

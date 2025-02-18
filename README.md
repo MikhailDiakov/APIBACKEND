@@ -568,4 +568,8 @@ Works with the following endpoints:
 
 # Log Service (API6)
 
-## Writes logs from different microservices to cassandra
+### Writes logs from different microservices to cassandra
+
+# Notifications service (API7)
+
+### Sends request for password recovery, registration, orders, etc. to the post office

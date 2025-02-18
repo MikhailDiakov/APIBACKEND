@@ -10,7 +10,7 @@ import json
 import uuid
 from decimal import Decimal
 from rest_framework.permissions import BasePermission
-from logs_service import log_to_kafka
+from .logs_service import log_to_kafka
 
 PRODUCT_SERVICE = settings.PRODUCT_SERVICE
 USER_SERVICE_URL = settings.USER_SERVICE_URL

@@ -1,10 +1,9 @@
-# tasks.py
 from celery import shared_task
-from django.core.mail import send_mail
+from .notifications_service import send_notification_to_kafka
 from django.contrib.auth import get_user_model
+from .logs_service import log_to_kafka
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
-from .logs_service import log_to_kafka
 
 
 def generate_reset_password_url(user, domain, protocol):
@@ -29,37 +28,26 @@ def generate_reset_password_url(user, domain, protocol):
 
 
 @shared_task
-def send_reset_email(user_id, domain, protocol):
-    User = get_user_model()
+def send_reset_email(id, domain, protocol):
     try:
-        user = User.objects.get(id=user_id)
-        log_to_kafka(
-            message="User found for password reset email.",
-            level="info",
-            extra_data={"user_id": user.id, "email": user.email},
-        )
+        User = get_user_model()
+        user = User.objects.get(id=id)
+        email = user.email
         reset_url = generate_reset_password_url(user, domain, protocol)
-        send_mail(
-            "Password Reset",
-            f"Click the link to reset your password: {reset_url}",
-            "no-reply@example.com",
-            [user.email],
-            fail_silently=False,
-        )
-        log_to_kafka(
-            message="Password reset email sent successfully.",
-            level="info",
-            extra_data={"user_id": user.id, "email": user.email},
+        send_notification_to_kafka(
+            event_type="password_reset_requested",
+            reset_url=reset_url,
+            email=email,
         )
     except User.DoesNotExist:
         log_to_kafka(
             message="User not found for password reset email.",
             level="warning",
-            extra_data={"user_id": user_id},
+            extra_data={"user_id": id},
         )
     except Exception as e:
         log_to_kafka(
             message="Error sending password reset email.",
             level="error",
-            extra_data={"user_id": user_id, "error": str(e)},
+            extra_data={"user_id": id, "error": str(e)},
         )

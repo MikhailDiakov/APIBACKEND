@@ -218,7 +218,7 @@ services:
   order_celery:
     build:
       context: ./API3
-    command: celery -A API3 worker --loglevel=info
+    command: celery -A API3 worker --loglevel=info -Q orders
     volumes:
       - ./API3:/app
     depends_on:
@@ -235,7 +235,7 @@ services:
   user_celery:
     build:
       context: ./API4
-    command: celery -A API4 worker --loglevel=info
+    command: celery -A API4 worker --loglevel=info -Q users
     volumes:
       - ./API4:/app
     depends_on:
@@ -258,7 +258,7 @@ services:
     networks:
       - microservice-network
 
-  # Kafka брокер
+  # Kafka
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: kafka
@@ -289,7 +289,7 @@ services:
       - microservice-network
 
   # Logs microservice
-  logs-service:
+  logs_service:
     build:
       context: ./API6
     depends_on:
@@ -302,6 +302,54 @@ services:
     restart: on-failure:5
     networks:
       - microservice-network
+  # Notifications microservice
+  notifications_service:
+    build:
+      context: ./API7
+    volumes:
+      - ./API7:/app
+    ports:
+      - "8005:8005"
+    depends_on:
+      - kafka
+      - zookeeper
+      - notifications_db
+    environment:
+      <<: *environment-defaults
+      KAFKA_BROKER: "kafka:9092"
+      DB_HOST: notifications_db
+    restart: on-failure:5
+    networks:
+      - microservice-network
+
+  notifications_db:
+    image: postgres:latest
+    networks:
+      - microservice-network
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - notifications_db_data:/var/lib/postgresql/data
+    restart: on-failure:5
+
+  notifications_celery:
+    build:
+      context: ./API7
+    command: celery -A API7 worker --loglevel=info -Q notifications
+    volumes:
+      - ./API7:/app
+    depends_on:
+      - redis
+      - notifications_db
+      - notifications_service
+    networks:
+      - microservice-network
+    environment:
+      <<: *environment-defaults
+      DB_HOST: notifications_db
+    restart: on-failure:5
 
 networks:
   microservice-network:
@@ -313,5 +361,6 @@ volumes:
   order_db_data:
   user_db_data:
   payment_db_data:
+  notifications_db_data:
   redis_data:
   cassandra_data:
