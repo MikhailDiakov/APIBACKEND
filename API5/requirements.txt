@@ -15,6 +15,7 @@ djangorestframework==3.15.2
 djangorestframework_simplejwt==5.4.0
 gunicorn==23.0.0
 idna==3.10
+kafka-python==2.0.3
 kombu==5.4.2
 packaging==24.2
 pillow==11.1.0

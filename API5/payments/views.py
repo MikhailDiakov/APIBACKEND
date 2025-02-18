@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 import json
 import requests
+from logs_service import log_to_kafka
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 ORDER_SERVICE_URL = settings.ORDER_SERVICE_URL
@@ -31,10 +32,18 @@ def create_checkout_session(request):
             )
 
             if order_response.status_code != 200:
+                log_to_kafka(
+                    message="Order not found",
+                    level="error",
+                    extra_data={
+                        "order_id": order_id,
+                        "cart_key": cart_key if cart_key else None,
+                        "status": "failed",
+                    },
+                )
                 return JsonResponse({"error": "Order not found"}, status=404)
 
             order_data = order_response.json()
-
             items = order_data.get("order", {}).get("items", [])
 
             line_items = []
@@ -66,10 +75,26 @@ def create_checkout_session(request):
                 cancel_url=cancel_url,
                 line_items=line_items,
             )
+            log_to_kafka(
+                message="Checkout session created",
+                level="info",
+                extra_data={
+                    "event": "checkout_session_created",
+                    "order_id": order_id,
+                    "cart_key": cart_key if cart_key else None,
+                    "status": "success",
+                    "checkout_url": session.url,
+                },
+            )
 
             return JsonResponse({"checkout_url": session.url})
 
         except Exception as e:
+            log_to_kafka(
+                message="Error creating checkout session",
+                level="error",
+                extra_data={"error": str(e), "status": "failed"},
+            )
             return JsonResponse({"error": str(e)}, status=400)
 
 
@@ -83,8 +108,18 @@ def stripe_webhook(request):
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError as e:
+        log_to_kafka(
+            message="Invalid payload in webhook",
+            level="error",
+            extra_data={"error": "Invalid payload", "status": "failed"},
+        )
         return HttpResponse(status=400)
     except stripe.error.SignatureVerificationError as e:
+        log_to_kafka(
+            message="Invalid signature in webhook",
+            level="error",
+            extra_data={"error": "Signature verification failed", "status": "failed"},
+        )
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
@@ -104,8 +139,27 @@ def stripe_webhook(request):
 
             order_response = requests.put(order_update_url, json=data, headers=headers)
             if order_response.status_code == 200:
+                log_to_kafka(
+                    message="Order updated successfully after payment",
+                    level="info",
+                    extra_data={
+                        "event": "order_payment_success",
+                        "order_id": order_id,
+                        "payment_intent": payment_intent,
+                        "status": "completed",
+                    },
+                )
                 return JsonResponse({"status": "success"})
             else:
+                log_to_kafka(
+                    message="Failed to update order status after payment",
+                    level="error",
+                    extra_data={
+                        "order_id": order_id,
+                        "error": "Failed to update",
+                        "status": "failed",
+                    },
+                )
                 return JsonResponse(
                     {"error": "Failed to update order status"}, status=500
                 )

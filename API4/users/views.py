@@ -18,6 +18,7 @@ from django.utils.http import urlsafe_base64_decode
 from urllib.parse import urlparse, parse_qs
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from .logs_service import log_to_kafka
 
 User = get_user_model()
 
@@ -26,29 +27,67 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(
-            {
-                "message": "User registered successfully.",
-                "user": UserSerializer(user).data,
-            },
-            status=status.HTTP_201_CREATED,
+        log_to_kafka(
+            message="Registration attempt.", level="info", extra_data=request.data
         )
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            log_to_kafka(
+                message="User registered successfully.",
+                level="info",
+                extra_data={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+            )
+            return Response(
+                {
+                    "message": "User registered successfully.",
+                    "user": UserSerializer(user).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            log_to_kafka(
+                message="User registration failed.",
+                level="error",
+                extra_data={"error": str(e)},
+            )
+            return Response(
+                {"error": "Registration failed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        log_to_kafka(
+            message="Logout attempt.",
+            level="info",
+            extra_data={"user_id": request.user.id},
+        )
         try:
             token = Token.objects.get(user=request.user)
             token.delete()
+            log_to_kafka(
+                message="User logged out successfully.",
+                level="info",
+                extra_data={"user_id": request.user.id},
+            )
             return Response(
                 {"message": "Logged out successfully."}, status=status.HTTP_200_OK
             )
         except Token.DoesNotExist:
+            log_to_kafka(
+                message="Token not found during logout.",
+                level="warning",
+                extra_data={"user_id": request.user.id},
+            )
             return Response(
                 {"error": "Token not found."}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -60,6 +99,11 @@ class UserDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        log_to_kafka(
+            message="User detail retrieval.",
+            level="info",
+            extra_data={"user_id": request.user.id},
+        )
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
@@ -71,12 +115,33 @@ class ProfileUpdateView(generics.UpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    def update(self, request, *args, **kwargs):
+        log_to_kafka(
+            message="Profile update attempt.",
+            level="info",
+            extra_data={"user_id": request.user.id, "data": request.data},
+        )
+        response = super().update(request, *args, **kwargs)
+
+        log_to_kafka(
+            message="Profile updated successfully.",
+            level="info",
+            extra_data={"user_id": request.user.id},
+        )
+        return response
+
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         user = request.user
+
+        log_to_kafka(
+            message="Password change attempt.",
+            level="info",
+            extra_data={"user_id": user.id},
+        )
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -84,6 +149,11 @@ class ChangePasswordView(APIView):
         new_password = serializer.validated_data["new_password"]
 
         if not user.check_password(old_password):
+            log_to_kafka(
+                message="Old password incorrect.",
+                level="warning",
+                extra_data={"user_id": user.id},
+            )
             return Response(
                 {"error": "Old password is incorrect."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -92,11 +162,21 @@ class ChangePasswordView(APIView):
         try:
             validate_password(new_password, user)
         except ValidationError as e:
+            log_to_kafka(
+                message="New password validation failed.",
+                level="error",
+                extra_data={"user_id": user.id, "error": str(e)},
+            )
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(new_password)
         user.save()
 
+        log_to_kafka(
+            message="Password changed successfully.",
+            level="info",
+            extra_data={"user_id": user.id},
+        )
         return Response(
             {"message": "Password updated successfully."}, status=status.HTTP_200_OK
         )
@@ -111,6 +191,12 @@ class CheckAdminStatusView(APIView):
 
 class CustomPasswordResetView(APIView):
     def post(self, request, *args, **kwargs):
+        log_to_kafka(
+            message="Password reset request initiated.",
+            level="info",
+            extra_data={"email": request.data.get("email")},
+        )
+
         email = request.data.get("email")
         if not email:
             return Response(
@@ -120,13 +206,28 @@ class CustomPasswordResetView(APIView):
         User = get_user_model()
         try:
             user = User.objects.get(email=email)
+            log_to_kafka(
+                message="User found for password reset.",
+                level="info",
+                extra_data={"user_id": user.id, "email": email},
+            )
         except ObjectDoesNotExist:
+            log_to_kafka(
+                message="Password reset requested for non-existent email.",
+                level="warning",
+                extra_data={"email": email},
+            )
             pass
 
         protocol = "https" if self.request.is_secure() else "http"
         domain = self.request.get_host()
 
         send_reset_email.delay(user.id, domain, protocol)
+        log_to_kafka(
+            message="Password reset email sent (task dispatched).",
+            level="info",
+            extra_data={"user_id": user.id, "email": email},
+        )
 
         return Response(
             {
@@ -138,6 +239,11 @@ class CustomPasswordResetView(APIView):
 
 class CustomPasswordResetConfirmView(APIView):
     def post(self, request, *args, **kwargs):
+        log_to_kafka(
+            message="Password reset confirmation initiated.",
+            level="info",
+            extra_data={"url": request.build_absolute_uri()},
+        )
         url = request.build_absolute_uri()
         query_params = parse_qs(urlparse(url).query)
         uidb64 = query_params.get("uidb64", [None])[0]
@@ -147,6 +253,16 @@ class CustomPasswordResetConfirmView(APIView):
         confirm_password = request.data.get("confirm_password")
 
         if not uidb64 or not token or not new_password or not confirm_password:
+            log_to_kafka(
+                message="Password reset confirmation failed - Missing parameters.",
+                level="warning",
+                extra_data={
+                    "uidb64": uidb64,
+                    "token": token,
+                    "new_password": bool(new_password),
+                    "confirm_password": bool(confirm_password),
+                },
+            )
             return Response(
                 {
                     "detail": "UID, token, new password, and confirm password are required."
@@ -155,6 +271,11 @@ class CustomPasswordResetConfirmView(APIView):
             )
 
         if new_password != confirm_password:
+            log_to_kafka(
+                message="Password reset failed - Passwords do not match.",
+                level="warning",
+                extra_data={"uidb64": uidb64},
+            )
             return Response(
                 {"detail": "Passwords do not match."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -163,7 +284,17 @@ class CustomPasswordResetConfirmView(APIView):
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
             user = get_user_model().objects.get(pk=uid)
+            log_to_kafka(
+                message="User found for password reset confirmation.",
+                level="info",
+                extra_data={"user_id": user.id},
+            )
         except (TypeError, ValueError, OverflowError, ObjectDoesNotExist):
+            log_to_kafka(
+                message="Password reset failed - Invalid link or user not found.",
+                level="error",
+                extra_data={"uidb64": uidb64},
+            )
             return Response(
                 {"detail": "Invalid link."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -173,15 +304,30 @@ class CustomPasswordResetConfirmView(APIView):
             try:
                 validate_password(new_password, user)
             except ValidationError as e:
+                log_to_kafka(
+                    message="Password reset failed - Password validation error.",
+                    level="error",
+                    extra_data={"user_id": user.id, "error": str(e)},
+                )
                 return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             user.set_password(new_password)
             user.save()
+            log_to_kafka(
+                message="Password reset successful.",
+                level="info",
+                extra_data={"user_id": user.id},
+            )
             return Response(
                 {"detail": "Password has been reset."},
                 status=status.HTTP_200_OK,
             )
         else:
+            log_to_kafka(
+                message="Password reset failed - Invalid or expired token.",
+                level="warning",
+                extra_data={"user_id": user.id, "token": token},
+            )
             return Response(
                 {"detail": "Invalid or expired token."},
                 status=status.HTTP_400_BAD_REQUEST,

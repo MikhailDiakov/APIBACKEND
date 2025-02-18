@@ -277,13 +277,13 @@ Works with the following endpoints:
 - **Request Body**:
   ```json
   {
-    "cart_key": "cart_a0c42c357fe14de0",
+    "cart_key": "string",
     "shipping_address": "string",
     "city": "string",
     "postcode": "string",
     "first_name": "string",
     "last_name": "string",
-    "phone": "string",
+    "phone_number": "string",
     "email": "string",
     "notes": "string"
   }
@@ -541,12 +541,12 @@ Works with the following endpoints:
 - For guest users, cart_key is required to identify the cart.
 - For authenticated users, cart_key can be omitted, as the system will use the user_id from token.
 - **Request Parameters**:
+
   ```json
-  {
-    "order_id": "integer",
-    "cart_key": "string"
-  }
+
+
   ```
+
 - **Response**:
   ```json
   {
@@ -565,3 +565,7 @@ Works with the following endpoints:
     "status": "canceled"
   }
   ```
+
+# Log Service (API6)
+
+## Writes logs from different microservices to cassandra

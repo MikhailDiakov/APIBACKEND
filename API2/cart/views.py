@@ -10,6 +10,7 @@ import json
 import uuid
 from decimal import Decimal
 from rest_framework.permissions import BasePermission
+from logs_service import log_to_kafka
 
 PRODUCT_SERVICE = settings.PRODUCT_SERVICE
 USER_SERVICE_URL = settings.USER_SERVICE_URL
@@ -158,6 +159,19 @@ class CartViewSet(viewsets.ViewSet):
 
         redis_client.expire(self.cart_key, int(self.cart_ttl.total_seconds()))
 
+        log_to_kafka(
+            message="Add item to cart",
+            level="info",
+            extra_data={
+                "action": "add_item",
+                "cart_key": self.cart_key,
+                "product_id": product_id,
+                "quantity": quantity,
+                "name": product_info["name"],
+                "price": product_info["price"],
+                "discount": product_info["discount"],
+            },
+        )
         return Response(
             {
                 "message": "Item added to cart",
@@ -184,6 +198,16 @@ class CartViewSet(viewsets.ViewSet):
         if redis_client.hlen(self.cart_key) > 0:
             redis_client.expire(self.cart_key, int(self.cart_ttl.total_seconds()))
 
+        log_to_kafka(
+            message="Remove item from cart",
+            level="info",
+            extra_data={
+                "action": "remove_item",
+                "cart_key": self.cart_key,
+                "product_id": product_id,
+            },
+        )
+
         return Response(
             {
                 "message": "Item removed from cart",
@@ -196,6 +220,13 @@ class CartViewSet(viewsets.ViewSet):
     def clear_cart(self, request):
         redis_client.delete(self.cart_key)
 
+        log_to_kafka(
+            message="Clear cart",
+            level="info",
+            extra_data={
+                "cart_key": self.cart_key,
+            },
+        )
         return Response(
             {
                 "message": "Cart cleared",
@@ -261,6 +292,15 @@ class CartViewSet(viewsets.ViewSet):
         redis_client.hset(self.cart_key, product_id, json.dumps(existing_item))
         redis_client.expire(self.cart_key, int(self.cart_ttl.total_seconds()))
 
+        log_to_kafka(
+            message="Update Quantity Item",
+            level="info",
+            extra_data={
+                "cart_key": self.cart_key,
+                "product_id": product_id,
+                "new_quantity": existing_item["quantity"],
+            },
+        )
         return Response(
             {
                 "message": "Quantity updated successfully.",

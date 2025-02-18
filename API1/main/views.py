@@ -9,8 +9,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 import requests
 from django.conf import settings
-
 from .filters import ProductFilter
+from logs_service import log_to_kafka
 
 USER_SERVICE_URL = settings.USER_SERVICE_URL
 
@@ -41,6 +41,14 @@ class ProductAPIview(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin created a new product.",
+                level="info",
+                extra_data={
+                    "action": "create",
+                    "product_data": request.data,
+                },
+            )
             return super().create(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},
@@ -50,6 +58,15 @@ class ProductAPIview(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin updated a product.",
+                level="info",
+                extra_data={
+                    "action": "update",
+                    "product_id": kwargs["pk"],
+                    "updated_data": request.data,
+                },
+            )
             return super().update(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},
@@ -59,6 +76,14 @@ class ProductAPIview(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin deleted a product.",
+                level="info",
+                extra_data={
+                    "action": "delete",
+                    "product_id": kwargs["pk"],
+                },
+            )
             return super().destroy(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},
@@ -89,6 +114,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin created a new category.",
+                level="info",
+                extra_data={
+                    "action": "create",
+                    "category_data": request.data,
+                },
+            )
             return super().create(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},
@@ -98,6 +131,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin updated a category.",
+                level="info",
+                extra_data={
+                    "action": "update",
+                    "category_id": kwargs["pk"],
+                    "updated_data": request.data,
+                },
+            )
             return super().update(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},
@@ -107,6 +149,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         user = self.get_user(request)
         if user:
+            log_to_kafka(
+                message="Admin deleted a category.",
+                level="info",
+                extra_data={
+                    "action": "delete",
+                    "category_id": kwargs["pk"],
+                },
+            )
             return super().destroy(request, *args, **kwargs)
         return Response(
             {"detail": "You do not have permission to perform this action."},

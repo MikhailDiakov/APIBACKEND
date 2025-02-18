@@ -9,6 +9,7 @@ from decimal import Decimal
 from rest_framework.permissions import BasePermission
 from .tasks import update_order_task
 import re
+from logs_service import log_to_kafka
 
 CART_SERVICE_URL = settings.CART_SERVICE_URL
 USER_SERVICE_URL = settings.USER_SERVICE_URL
@@ -101,7 +102,16 @@ class OrderViewSet(viewsets.ViewSet):
                 {"error": "Failed to clear the cart after order creation."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
+        log_to_kafka(
+            message="Order Created",
+            level="info",
+            extra_data={
+                "event": "order_created",
+                "order_id": order.id,
+                "cart_key": cart_key,
+                "status": "success",
+            },
+        )
         return Response(
             {
                 "message": "Order created successfully",
