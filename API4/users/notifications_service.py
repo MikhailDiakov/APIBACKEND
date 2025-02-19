@@ -16,10 +16,8 @@ def send_notification_to_kafka(event_type, reset_url, email):
             "email": email,
         }
 
-        future = producer.send("notifications", notification_data)
-        future.get(timeout=10)
+        producer.send("notifications", notification_data)
         producer.flush()
-        producer.close()
         logging.info(f"Notification for event {event_type} sent to Kafka.")
     except Exception as e:
         logging.error(f"Failed to send notification to Kafka: {str(e)}")

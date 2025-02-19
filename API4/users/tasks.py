@@ -51,3 +51,24 @@ def send_reset_email(id, domain, protocol):
             level="error",
             extra_data={"user_id": id, "error": str(e)},
         )
+
+
+@shared_task
+def send_registration_notification(email):
+    try:
+        send_notification_to_kafka(
+            event_type="user_registered",
+            reset_url=None,
+            email=email,
+        )
+        log_to_kafka(
+            message="Registration notification sent successfully.",
+            level="info",
+            extra_data={"email": email},
+        )
+    except Exception as e:
+        log_to_kafka(
+            message="Error sending registration notification.",
+            level="error",
+            extra_data={"email": email, "error": str(e)},
+        )

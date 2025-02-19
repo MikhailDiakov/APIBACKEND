@@ -12,7 +12,7 @@ from .serializers import (
 )
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from .tasks import send_reset_email
+from .tasks import send_reset_email, send_registration_notification
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from urllib.parse import urlparse, parse_qs
@@ -43,6 +43,7 @@ class RegisterView(generics.CreateAPIView):
                     "email": user.email,
                 },
             )
+            send_registration_notification.delay(user.email)
             return Response(
                 {
                     "message": "User registered successfully.",

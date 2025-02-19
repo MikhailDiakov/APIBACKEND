@@ -3,7 +3,11 @@ import time
 import json
 from kafka import KafkaConsumer
 import os
-from notifications.tasks import send_reset_email_notifications
+from notifications.tasks import (
+    send_reset_email_notifications,
+    send_order_paid_email_notifications,
+    send_registration_email_notifications,
+)
 from notifications.logs_service import log_to_kafka
 
 
@@ -35,18 +39,45 @@ class Command(BaseCommand):
             try:
                 data_message = message.value.decode()
                 data = json.loads(data_message)
-                print(f"Parsed message: {data}")
                 event_type = data.get("event_type")
-                reset_url = data.get("reset_url")
                 email = data.get("email")
+                reset_url = data.get("reset_url")
+                order_id = data.get("order_id")
 
                 if event_type == "password_reset_requested":
-                    print("PASSWORD RESET REQUESTED")
+                    if not email:
+                        raise ValueError(
+                            "Missing email for password reset notification"
+                        )
                     send_reset_email_notifications.delay(reset_url, email)
                     log_to_kafka(
                         message="send_reset_email task created",
                         level="info",
                         extra_data={"email": email, "event_type": event_type},
+                    )
+                elif event_type == "user_registered":
+                    if not email:
+                        raise ValueError("Missing email for registration notification")
+                    send_registration_email_notifications.delay(email)
+                    log_to_kafka(
+                        message="send_registration_email task created",
+                        level="info",
+                        extra_data={"email": email, "event_type": event_type},
+                    )
+                elif event_type == "order_paid":
+                    if not email or not order_id:
+                        raise ValueError(
+                            "Missing email or order_id for order paid notification"
+                        )
+                    send_order_paid_email_notifications.delay(email, order_id)
+                    log_to_kafka(
+                        message="send_order_paid_email task created",
+                        level="info",
+                        extra_data={
+                            "email": email,
+                            "event_type": event_type,
+                            "order_id": order_id,
+                        },
                     )
                 else:
                     log_to_kafka(
@@ -54,7 +85,6 @@ class Command(BaseCommand):
                         level="warning",
                         extra_data={"event_type": event_type},
                     )
-
             except Exception as e:
                 log_to_kafka(
                     message="Failed to process Kafka message",

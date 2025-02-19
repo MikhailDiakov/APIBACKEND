@@ -572,4 +572,4 @@ Works with the following endpoints:
 
 # Notifications service (API7)
 
-### Sends request for password recovery, registration, orders, etc. to the post office
+### Sends request for password recovery, registration, orders, etc. to the email
