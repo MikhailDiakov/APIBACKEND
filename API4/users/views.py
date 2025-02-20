@@ -26,6 +26,10 @@ User = get_user_model()
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
+
+class RegisterView(generics.CreateAPIView):
+    serializer_class = RegisterSerializer
+
     def post(self, request, *args, **kwargs):
         log_to_kafka(
             message="Registration attempt.", level="info", extra_data=request.data
@@ -50,6 +54,17 @@ class RegisterView(generics.CreateAPIView):
                     "user": UserSerializer(user).data,
                 },
                 status=status.HTTP_201_CREATED,
+            )
+        except serializers.ValidationError as e:
+            error_details = e.detail
+            log_to_kafka(
+                message="User registration failed.",
+                level="error",
+                extra_data={"error": str(e)},
+            )
+            return Response(
+                {"errors": error_details},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
             log_to_kafka(
@@ -135,51 +150,57 @@ class ProfileUpdateView(generics.UpdateAPIView):
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
+
+class CustomPasswordResetView(APIView):
     def post(self, request, *args, **kwargs):
-        user = request.user
-
         log_to_kafka(
-            message="Password change attempt.",
+            message="Password reset request initiated.",
             level="info",
-            extra_data={"user_id": user.id},
+            extra_data={"email": request.data.get("email")},
         )
-        serializer = ChangePasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        old_password = serializer.validated_data["old_password"]
-        new_password = serializer.validated_data["new_password"]
-
-        if not user.check_password(old_password):
-            log_to_kafka(
-                message="Old password incorrect.",
-                level="warning",
-                extra_data={"user_id": user.id},
-            )
+        email = request.data.get("email")
+        if not email:
             return Response(
-                {"error": "Old password is incorrect."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        User = get_user_model()
+        user = None
         try:
-            validate_password(new_password, user)
-        except ValidationError as e:
+            user = User.objects.get(email=email)
             log_to_kafka(
-                message="New password validation failed.",
-                level="error",
-                extra_data={"user_id": user.id, "error": str(e)},
+                message="User found for password reset.",
+                level="info",
+                extra_data={"user_id": user.id, "email": email},
             )
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except ObjectDoesNotExist:
+            log_to_kafka(
+                message="Password reset requested for non-existent email.",
+                level="warning",
+                extra_data={"email": email},
+            )
 
-        user.set_password(new_password)
-        user.save()
+        if user:
+            protocol = "https" if self.request.is_secure() else "http"
+            domain = self.request.get_host()
+            if not domain:
+                return Response(
+                    {"error": "Domain is required."}, status=status.HTTP_400_BAD_REQUEST
+                )
 
-        log_to_kafka(
-            message="Password changed successfully.",
-            level="info",
-            extra_data={"user_id": user.id},
-        )
+            send_reset_email.delay(user.id, domain, protocol)
+            log_to_kafka(
+                message="Password reset email sent (task dispatched).",
+                level="info",
+                extra_data={"user_id": user.id, "email": email},
+            )
+
         return Response(
-            {"message": "Password updated successfully."}, status=status.HTTP_200_OK
+            {
+                "detail": "If an account with that email exists, a password reset email has been sent."
+            },
+            status=status.HTTP_200_OK,
         )
 
 

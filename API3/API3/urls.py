@@ -26,4 +26,5 @@ router.register(r"", OrderViewSet, basename="order")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include(router.urls)),
+    path("", include("django_prometheus.urls")),
 ]

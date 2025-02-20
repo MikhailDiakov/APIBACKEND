@@ -44,16 +44,19 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "cart",
     "rest_framework",
+    "django_prometheus",
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
+    # "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "API2.urls"
@@ -82,7 +85,7 @@ WSGI_APPLICATION = "API2.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("DB_NAME"),
         "USER": os.environ.get("DB_USER"),
         "PASSWORD": os.environ.get("DB_PASSWORD"),
@@ -150,3 +153,10 @@ CART_SERVICE_URL = "http://nginx:80/api/v1/cart/"
 ORDER_SERVICE_URL = "http://nginx:80/api/v1/order/"
 USER_SERVICE_URL = "http://nginx:80/api/v1/users/"
 PAYMENT_SERVICE_URL = "http://nginx:80/api/v1/payments/"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_prometheus.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379/0",
+    }
+}

@@ -280,9 +280,12 @@ services:
     container_name: cassandra
     ports:
       - "9042:9042"
+      - "7199:7199"
     environment:
       - CASSANDRA_CLUSTER_NAME=log-cluster
       - CASSANDRA_NUM_TOKENS=256
+      - JVM_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=7199 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=cassandra -Dcom.sun.management.jmxremote.rmi.port=7199
+      - LOCAL_JMX=no
     volumes:
       - cassandra_data:/var/lib/cassandra
     networks:
@@ -351,6 +354,81 @@ services:
       DB_HOST: notifications_db
     restart: on-failure:5
 
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - microservice-network
+    restart: always
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - microservice-network
+    restart: always
+
+  # Postgres Exporter
+  postgres_exporter:
+    image: wrouesnel/postgres_exporter
+    container_name: postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@product_db:5432/${DB_NAME}?sslmode=disable"
+    networks:
+      - microservice-network
+    restart: always
+    ports:
+      - "9187:9187"
+
+  # Redis Exporter
+  redis_exporter:
+    image: oliver006/redis_exporter
+    container_name: redis_exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    networks:
+      - microservice-network
+    restart: always
+    ports:
+      - "9121:9121"
+
+  # Kafka Exporter
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka:9092"
+    ports:
+      - 9308:9308
+    networks:
+      - microservice-network
+
+  # Cassandra Exporter
+
+  # Celery Exporter
+  celery_exporter:
+    image: ovalmoney/celery-exporter
+    container_name: celery_exporter
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_NAMESPACE=celery
+    networks:
+      - microservice-network
+    restart: always
+    ports:
+      - "5555:5555"
+
 networks:
   microservice-network:
     driver: bridge
@@ -364,3 +442,5 @@ volumes:
   notifications_db_data:
   redis_data:
   cassandra_data:
+  prometheus_data:
+  grafana_data:
