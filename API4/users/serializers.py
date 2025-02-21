@@ -2,12 +2,21 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 
 User = get_user_model()
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token["username"] = user.username
+        token["is_admin"] = user.is_superuser or user.is_staff
+
+        return token
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -37,6 +46,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"confirm_password": "Passwords must match."}
             )
+        if get_user_model().objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError({"email": "Email is already registered."})
+
         return attrs
 
     def create(self, validated_data):
@@ -86,9 +98,31 @@ class ProfileSerializer(serializers.ModelSerializer):
             "address",
             "postcode",
         ]
-        read_only_fields = ["username", "email"]
+        read_only_fields = []
+
+    def validate_username(self, value):
+        if (
+            get_user_model()
+            .objects.filter(username=value)
+            .exclude(id=self.instance.id)
+            .exists()
+        ):
+            raise serializers.ValidationError("Username is already taken.")
+        return value
+
+    def validate_email(self, value):
+        if (
+            get_user_model()
+            .objects.filter(email=value)
+            .exclude(id=self.instance.id)
+            .exists()
+        ):
+            raise serializers.ValidationError("Email is already registered.")
+        return value
 
     def update(self, instance, validated_data):
+        instance.username = validated_data.get("username", instance.username)
+        instance.email = validated_data.get("email", instance.email)
         instance.phone_number = validated_data.get(
             "phone_number", instance.phone_number
         )

@@ -10,9 +10,10 @@ from rest_framework.permissions import BasePermission
 from .tasks import update_order_task
 import re
 from .logs_service import log_to_kafka
+import jwt
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 CART_SERVICE_URL = settings.CART_SERVICE_URL
-USER_SERVICE_URL = settings.USER_SERVICE_URL
 
 
 class MicroservicePermission(BasePermission):
@@ -125,12 +126,7 @@ class OrderViewSet(viewsets.ViewSet):
     def update_order(self, request):
         permission = MicroservicePermission()
         is_microservice = permission.has_permission(request, self)
-        is_admin = False
-
-        if not is_microservice:
-            user = self.get_user(request)
-            if user:
-                is_admin = True
+        is_admin = self.is_admin_user(request)
 
         if not is_microservice and not is_admin:
             return Response(
@@ -165,30 +161,24 @@ class OrderViewSet(viewsets.ViewSet):
             {"message": "Order updated successfully."}, status=status.HTTP_200_OK
         )
 
-    def get_user(self, request):
+    def is_admin_user(self, request):
+        auth = JWTAuthentication()
         token = request.headers.get("Authorization")
         if not token:
-            return None
-
-        headers = {"Authorization": token}
-        response = requests.get(
-            f"{USER_SERVICE_URL}check-admin-status/", headers=headers
-        )
-
-        if response.status_code == 200:
-            user_data = response.json()
-            if user_data.get("is_admin"):
-                return user_data
-        return None
+            return False
+        try:
+            validated_token = auth.get_validated_token(token.split()[1])
+            return validated_token.get("is_admin", False)
+        except Exception:
+            return False
 
     @action(detail=False, methods=["get"])
     def get_orders(self, request):
-        token = request.headers.get("Authorization", "").replace("Token ", "")
-
+        token = request.headers.get("Authorization")
         if token:
-            user_info = self.get_user_info(token)
+            user_info = self.get_user_info_from_token(token)
             if user_info:
-                user_id = user_info.get("id")
+                user_id = user_info.get("user_id")
                 cart_key = f"cart_{user_id}"
             else:
                 return Response(
@@ -228,14 +218,14 @@ class OrderViewSet(viewsets.ViewSet):
             status=status.HTTP_200_OK,
         )
 
-    def get_user_info(self, token):
-        url = f"{USER_SERVICE_URL}me/"
-        headers = {"Authorization": f"Token {token}"}
-        response = requests.get(url, headers=headers, timeout=5)
+    def get_user_info_from_token(self, token):
+        auth = JWTAuthentication()
 
-        if response.status_code == 200:
-            return response.json()
-        return None
+        try:
+            validated_token = auth.get_validated_token(token.split()[1])
+            return validated_token
+        except Exception:
+            return None
 
     @action(detail=True, methods=["post"])
     def get_order_by_id(self, request, pk=None):
@@ -256,11 +246,11 @@ class OrderViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        token = request.headers.get("Authorization", "").replace("Token ", "")
-        user_info = self.get_user_info(token) if token else None
+        token = request.headers.get("Authorization")
+        user_info = self.get_user_info_from_token(token) if token else None
 
         if user_info:
-            user_id = user_info.get("id")
+            user_id = user_info.get("user_id")
             if order.cart_key != f"cart_{user_id}":
                 return Response(
                     {"error": "Forbidden. This order does not belong to you."},

@@ -9,6 +9,7 @@ from .serializers import (
     UserSerializer,
     ProfileSerializer,
     ChangePasswordSerializer,
+    CustomTokenObtainPairSerializer,
 )
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -19,12 +20,12 @@ from urllib.parse import urlparse, parse_qs
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .logs_service import log_to_kafka
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework import serializers
+
 
 User = get_user_model()
-
-
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -38,6 +39,15 @@ class RegisterView(generics.CreateAPIView):
         try:
             serializer.is_valid(raise_exception=True)
             user = serializer.save()
+
+            refresh = RefreshToken.for_user(user)
+            refresh["username"] = user.username
+            refresh["is_admin"] = user.is_superuser or user.is_staff
+
+            access_token = refresh.access_token
+            access_token["username"] = user.username
+            access_token["is_admin"] = user.is_superuser or user.is_staff
+
             log_to_kafka(
                 message="User registered successfully.",
                 level="info",
@@ -52,6 +62,8 @@ class RegisterView(generics.CreateAPIView):
                 {
                     "message": "User registered successfully.",
                     "user": UserSerializer(user).data,
+                    "access": str(access_token),
+                    "refresh": str(refresh),
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -81,15 +93,18 @@ class RegisterView(generics.CreateAPIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        log_to_kafka(
-            message="Logout attempt.",
-            level="info",
-            extra_data={"user_id": request.user.id},
-        )
+    def post(self, request):
         try:
-            token = Token.objects.get(user=request.user)
-            token.delete()
+            refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response(
+                    {"error": "Refresh token required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
             log_to_kafka(
                 message="User logged out successfully.",
                 level="info",
@@ -202,13 +217,6 @@ class CustomPasswordResetView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
-
-class CheckAdminStatusView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def get(self, request, *args, **kwargs):
-        return Response({"is_admin": True})
 
 
 class CustomPasswordResetView(APIView):
@@ -358,3 +366,7 @@ class CustomPasswordResetConfirmView(APIView):
                 {"detail": "Invalid or expired token."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

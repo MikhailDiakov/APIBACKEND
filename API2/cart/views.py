@@ -11,10 +11,9 @@ import uuid
 from decimal import Decimal
 from rest_framework.permissions import BasePermission
 from .logs_service import log_to_kafka
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 PRODUCT_SERVICE = settings.PRODUCT_SERVICE
-USER_SERVICE_URL = settings.USER_SERVICE_URL
-
 redis_client = redis.StrictRedis(
     host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0, decode_responses=True
 )
@@ -30,13 +29,23 @@ class CartViewSet(viewsets.ViewSet):
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
 
-        token = request.headers.get("Authorization", "").replace("Token ", "")
+        auth = JWTAuthentication()
+        token = request.headers.get("Authorization")
 
         if token:
-            user_info = self.get_user_info(token)
-            if user_info:
-                request.user_id = user_info.get("id")
-            else:
+            try:
+                auth = JWTAuthentication()
+                validated_token = auth.get_validated_token(token.split()[1])
+
+                user_info = validated_token
+                if user_info:
+                    request.user_id = user_info.get("user_id")
+                else:
+                    return Response(
+                        {"detail": "Invalid token."},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+            except Exception:
                 return Response(
                     {"detail": "Invalid token."}, status=status.HTTP_401_UNAUTHORIZED
                 )
@@ -47,17 +56,7 @@ class CartViewSet(viewsets.ViewSet):
             request.user_id = request.session.get("cart_token")
 
         self.cart_key = f"cart_{request.user_id}"
-
         self.cart_ttl = timedelta(days=7) if token else timedelta(minutes=30)
-
-    def get_user_info(self, token):
-        url = f"{USER_SERVICE_URL}me/"
-        headers = {"Authorization": f"Token {token}"}
-        response = requests.get(url, headers=headers, timeout=5)
-
-        if response.status_code == 200:
-            return response.json()
-        return None
 
     def get_product_info(self, product_id):
         url = f"{PRODUCT_SERVICE}{product_id}/"

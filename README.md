@@ -404,7 +404,9 @@ Works with the following endpoints:
           "phone_number": "string" or null,
           "city": "string" or null,
           "address":"string" or null,
-          "postcode": "string" or null
+          "postcode": "string" or null,
+          "access":"string",
+          "refresh":"string"
       }
   }
   ```
@@ -422,7 +424,8 @@ Works with the following endpoints:
 - **Response**:
   ```json
   {
-    "token": "string"
+    "refresh": "string",
+    "access": "string"
   }
   ```
 
@@ -431,7 +434,7 @@ Works with the following endpoints:
 - **POST** `/api/v1/users/logout/`
 - **Request Parameters**:
   ```http
-  Authorization: Token <your_token_here>
+  Authorization: Bearer <your_token_here>
   ```
 - **Response**:
   ```json
@@ -445,7 +448,7 @@ Works with the following endpoints:
 - **GET** `/api/v1/users/me/`
 - **Request Parameters**:
   ```http
-  Authorization: Token <your_token_here>
+  Authorization: Bearer <your_token_here>
   ```
 - **Response**:
   ```json
@@ -468,6 +471,8 @@ Works with the following endpoints:
 - You can update this information
   ```json
   {
+      "username": "string",
+      "email": "string",
       "first_name": "string",
       "last_name": "string",
       "phone_number": "string" or null,
@@ -482,7 +487,7 @@ Works with the following endpoints:
 - **POST** `/api/v1/users/me/change-password/`
 - **Request Parameters**:
   ```http
-  Authorization: Token <your_token_here>
+  Authorization: Bearer <your_token_here>
   ```
 - **Response**:
   ```json
@@ -491,14 +496,6 @@ Works with the following endpoints:
     "new_password": "string",
     "confirm_password": "string"
   }
-  ```
-
-### Check admin status
-
-- **GET** `/api/v1/users/check-admin-status/` - only for for Admin, using in service.
-- **Request Parameters**:
-  ```http
-  Authorization: Token <your_token_here>
   ```
 
 ### Reset password with email
@@ -528,6 +525,38 @@ Works with the following endpoints:
   ```json
   {
     "detail": "Password has been reset."
+  }
+  ```
+
+### Refresh Token
+
+- **POST** `/api/v1/users/token/refresh/`
+- **Request Parameters**:
+  ```json
+  {
+    "refresh": "your_refresh_token_here"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "access": "new_access_token_here"
+  }
+  ```
+
+### Verify Token
+
+- **POST** `/api/v1/users/token/verify/`
+- **Request Parameters**:
+  ```json
+  {
+    "token": "your_access_token_here"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "detail": "Token is valid"
   }
   ```
 
