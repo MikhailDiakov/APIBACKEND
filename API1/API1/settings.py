@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "django_prometheus",
+    "graphene_django",
 ]
 
 MIDDLEWARE = [
@@ -171,3 +172,5 @@ CART_SERVICE_URL = "http://nginx:80/api/v1/cart/"
 ORDER_SERVICE_URL = "http://nginx:80/api/v1/order/"
 USER_SERVICE_URL = "http://nginx:80/api/v1/users/"
 PAYMENT_SERVICE_URL = "http://nginx:80/api/v1/payments/"
+
+GRAPHENE = {"SCHEMA": "API1.main.schema.schema"}

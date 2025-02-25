@@ -24,6 +24,50 @@
   ]
   ```
 
+### 1.1. all products (GraphQL)
+
+- **POST** `/api/v1/graphql/`  
+  **Request Body**:
+  ```json
+  query {
+    allProducts {
+      id
+      sellPrice
+      name
+      image
+      description
+      price
+      available
+      created
+      updated
+      discount
+      category
+    }
+  }
+  ```
+  **Response**
+  ```json
+  {
+    "data": {
+      "allProducts": [
+        {
+          "id": "integer",
+          "sellPrice": "decimal",
+          "name": "string",
+          "image": "string (URL) or null",
+          "description": "string",
+          "price": "decimal",
+          "available": "boolean",
+          "created": "datetime (ISO 8601)",
+          "updated": "datetime (ISO 8601)",
+          "discount": "decimal",
+          "category": "integer"
+        }
+      ]
+    }
+  }
+  ```
+
 ### 2. specific product
 
 - **GET** `/api/v1/product/{pk}/`  
@@ -76,6 +120,35 @@ Works with the following endpoints:
       "name": "string"
     }
   ]
+  ```
+
+### 1.1. all categories (GraphQL)
+
+- **POST** `/api/v1/graphql/`  
+  **Request Body**:
+
+  ```json
+  query {
+    allCategories {
+      id
+      name
+    }
+  }
+  ```
+
+  **Response**
+
+  ```json
+  {
+    "data": {
+      "allCategories": [
+        {
+          "id": "integer",
+          "name": "string"
+        }
+      ]
+    }
+  }
   ```
 
 ### 2. specific categoty
